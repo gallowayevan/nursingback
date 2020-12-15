@@ -7,7 +7,7 @@ const app = express()
 app.use(cors())
 app.use(compression())
 app.set('port', 8080);
-console.log(process.env)
+console.log(process.env);
 const connection = mysql.createConnection({
     host: process.env.MYSQL_HOST,
     user: process.env.MYSQL_USER,
