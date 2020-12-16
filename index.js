@@ -39,10 +39,11 @@ supply32.year;`
 
 
 
-
-connection.query(q, function (error, results, fields) {
-    if (error) throw error;
-    res.json(results);
+app.get('/data/', function (req, res) {
+    connection.query(q, function (error, results, fields) {
+        if (error) throw error;
+        res.json(results);
+    });
 });
 
 app.listen(app.get('port'), () => console.log(`App listening on port ${app.get('port')} !`))
