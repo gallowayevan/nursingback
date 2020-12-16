@@ -45,7 +45,7 @@ app.get('/data/', function (req, res) {
             .map(d => [`supply${scenario.get("supply")}.` + d[0], d[1]]);
 
         const where = queryArrayRenamed.length ?
-            "WHERE " + queryArrayRenamed.map(d => `${d[0]} = ??`).join(" AND ") :
+            "WHERE " + queryArrayRenamed.map(d => `${d[0]} = ?`).join(" AND ") :
             "";
 
         const sql = `SELECT
@@ -93,7 +93,7 @@ function constructQuery(table, queryArray) {
 
     const select = `SELECT year, location, setting, mean value ${table.includes("supply") ? ", lci, uci" : ""}`;
     const where = queryArray.length ?
-        "WHERE " + queryArray.map(d => `${d[0]} = ??`).join(" AND ") :
+        "WHERE " + queryArray.map(d => `${d[0]} = ?`).join(" AND ") :
         "";
     const orderBy = `ORDER BY year`;
     return `${select} FROM ${table} ${where} ${orderBy};`;
