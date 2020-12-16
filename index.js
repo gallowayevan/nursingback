@@ -9,6 +9,7 @@ app.use(compression())
 app.set('port', 8080);
 
 const db = mysql.createPool({
+    connectionLimit: 10,
     host: process.env.MYSQL_SERVICE_HOST,
     user: process.env.MYSQL_USER,
     password: process.env.MYSQL_PASSWORD,
