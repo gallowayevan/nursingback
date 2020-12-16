@@ -1,16 +1,25 @@
 const fs = require("fs");
 const { csvParse, autoType, csvFormatBody, dsvFormat, parse } = require('d3-dsv');
+const { groups } = require('d3-array');
 const { flatMap, flat } = require('array-flat-polyfill');
 
 function createTableStatement(table, columns) {
     const reals = ["mean", "uci", "lci"];
-    const texts = [];
+    const bigint = ["id"];
     return `CREATE TABLE ${table}(
-        ${columns.map(d => `${d} ${reals.includes(d) ? `REAL` : texts.includes(d) ? `TEXT` : `INTEGER`}`).join(",\n")}
-    );`
+        ${columns.map(d => `${d} ${reals.includes(d) ? `REAL` : bigint.includes(d) ? `BIGINT` : `SMALLINT`}`).join(",\n")}
+    );\n`
 }
 
-//Note that ids are NOT unique
+function createLoadInfileStatement(table) {
+    return `LOAD DATA LOCAL INFILE '${table}.csv' INTO TABLE ${table} FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n';\n`
+}
+
+function createIndexStatement(table) {
+    return `CREATE UNIQUE INDEX ${table}_id ON ${table}(id);\n`
+}
+
+//Note that ids are NOT unique (though they will be for individual scenario tables)
 //They are a convenience for quickly joining observations from the supply
 //and demand tables that have the same parameter settings (excluding scenario)
 function createID(d) {
@@ -81,9 +90,16 @@ const supply = csvParse(fs.readFileSync("raw_data/ForecastSummary - V41 -0212202
         });
         return newAndRenamedParameters;
     }).map(createID);
-const sColumns = Object.keys(supply[0]);
-fs.writeFileSync("raw_data/supply_long.csv", csvFormatBody(supply, sColumns));
-loadStatement += createTableStatement("supply", sColumns);
+//Now break up into separate tables
+groups(supply, d => d.scenario).forEach(function (d) {
+    // console.log(d)
+    const sColumns = Object.keys(d[1][0]);
+    fs.writeFileSync(`data/supply${d[0]}.csv`, csvFormatBody(d[1], sColumns));
+    loadStatement += createTableStatement(`supply${d[0]}`, sColumns);
+    loadStatement += createLoadInfileStatement(`supply${d[0]}`);
+    loadStatement += createIndexStatement(`supply${d[0]}`);
+})
+
 
 //Load demand data and process - first remove any spaces from headers in csv!
 const demand = dsvFormat(";").parse(fs.readFileSync("raw_data/DemandForecastSummary-10112020.csv", 'utf8'), autoType)
@@ -111,12 +127,19 @@ const demand = dsvFormat(";").parse(fs.readFileSync("raw_data/DemandForecastSumm
         return newAndRenamedParameters;
     })
     .map(createID);
-const dColumns = Object.keys(demand[0]);
-fs.writeFileSync("raw_data/demand_long.csv", csvFormatBody(demand, dColumns));
-loadStatement += "\n" + createTableStatement("demand", dColumns);
+
+//Now break up into separate tables
+groups(demand, d => d.scenario).forEach(function (d) {
+    // console.log(d)
+    const dColumns = Object.keys(d[1][0]);
+    fs.writeFileSync(`data/demand${d[0]}.csv`, csvFormatBody(d[1], dColumns));
+    loadStatement += createTableStatement(`demand${d[0]}`, dColumns);
+    loadStatement += createLoadInfileStatement(`demand${d[0]}`);
+    loadStatement += createIndexStatement(`demand${d[0]}`);
+});
 
 //.read load_statement.sql
-fs.writeFileSync("raw_data/load_statement.sql", loadStatement);
+fs.writeFileSync("data/load_statement.sql", loadStatement);
 
 function getLocationType(location) {
     return location < 200 & location != 0 ? 1 : +location.toString().slice(0, 1);

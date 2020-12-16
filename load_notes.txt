@@ -1,0 +1,26 @@
+//0. Clear data folder and run processData.js
+//1. Log into cloudapps - should be onyen
+oc login https://api.cloudapps.unc.edu
+//2. Get pod to SSH to
+oc get pods
+//3. Transfer file
+oc rsync C:\Users\emg33\Documents\Code\nursingproject\ nurseproject-124-wzqqk:/opt/app-root/src --exclude=* --include=forecast.db --no-perms
+//4. SSH in and check file
+oc rsh nurseproject-124-wzqqk
+//5. cd into data folder and login into database
+mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -h $HOSTNAME $MYSQL_DATABASE
+//6. drop and recreate database
+SHOW DATABASES;
+DROP DATABASE sampledb;
+CREATE DATABASE sampledb;
+USE sampledb;
+//7. Read in load statement
+source load_statement.sql
+
+
+-----How to add a new MySQL database to a project
+//Add new mySQL container
+//Add it as a permanent volume to Node project
+//Get secrets and set keys to use in Node env
+
+
