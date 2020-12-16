@@ -8,7 +8,7 @@ app.use(cors())
 app.use(compression())
 app.set('port', 8080);
 
-const connection = mysql.createConnection({
+const db = mysql.createPool({
     host: process.env.MYSQL_SERVICE_HOST,
     user: process.env.MYSQL_USER,
     password: process.env.MYSQL_PASSWORD,
@@ -16,26 +16,89 @@ const connection = mysql.createConnection({
     database: process.env.MYSQL_DATABASE
 });
 
-const q = `SELECT
-supply32.year,
-supply32.location,
-supply32.setting,
-supply32.mean supplyMean,
-demand1.mean demandMean,
-ROUND(supply32.mean - demand1.mean, 3) value
-FROM
-supply32
-INNER JOIN demand1 ON supply32.id = demand1.id
-WHERE
-supply32.type = 2
-AND supply32.education = 0
-AND supply32.rateOrTotal = 1
-AND supply32.fteOrHeadcount = 0
-AND supply32.locationType = 8
-AND supply32.location = 801
-AND supply32.setting = 0
-ORDER BY
-supply32.year;`
+let dataID = 0;
+app.get('/data/', function (req, res) {
+    const { calculation } = req.query;
+
+    if (calculation == "supply" || calculation == "demand") {
+        const queryArray = prepareQueryArray(calculation, req.query);
+        const scenario = +queryArray.find(d => d[0].includes("Scenario"))[1];
+        const queryArrayRenamed = queryArray.filter(d => d[0].indexOf("Scenario") < 0)
+            .map(d => [calculation + scenario + "." + d[0], d[1]]);
+
+        db.query(constructQuery(calculation + scenario, queryArrayRenamed), queryArrayRenamed.map(d => d[1]), (error, results, fields) => {
+            if (error) {
+                return console.error(error.message);
+            }
+
+            res.json({ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] });
+        });
+    } else if (calculation == "ratio" || calculation == "difference") {
+
+
+        const queryArray = Object.entries(req.query)
+            .map(d => [d[0], +d[1]])
+            .filter(d => d[0] != "calculation");
+        const scenario = new Map(queryArray.filter(d => d[0].includes("Scenario")).map(d => [d[0].slice(0, 6), d[1]]));
+        const queryArrayRenamed = queryArray.filter(d => d[0].indexOf("Scenario") < 0)
+            .map(d => [`supply${scenario.get("supply")}.` + d[0], d[1]]);
+
+        const where = queryArrayRenamed.length ?
+            "WHERE " + queryArrayRenamed.map(d => `${d[0]} = ??`).join(" AND ") :
+            "";
+
+        const sql = `SELECT
+                supply${scenario.get("supply")}.year,
+                supply${scenario.get("supply")}.location,
+                supply${scenario.get("supply")}.setting,
+                supply${scenario.get("supply")}.mean supplyMean,
+                demand${scenario.get("demand")}.mean demandMean,
+                ${calculation == "ratio" ?
+                `ROUND(supply${scenario.get("supply")}.mean / demand${scenario.get("demand")}.mean, 3) value` :
+                `ROUND(supply${scenario.get("supply")}.mean - demand${scenario.get("demand")}.mean, 3) value`}
+            FROM
+                supply${scenario.get("supply")}
+                INNER JOIN demand${scenario.get("demand")} ON supply${scenario.get("supply")}.id = demand${scenario.get("demand")}.id
+            ${where}
+            ORDER BY
+                supply${scenario.get("supply")}.year`
+        db.query(sql, queryArrayRenamed.map(d => d[1]), (error, results, fields) => {
+            if (error) {
+                return console.error(error.message);
+            }
+            res.json({ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] });
+        });
+
+    }
+}
+)
+
+function prepareQueryArray(table, queryObject) {
+
+    const queryArray = Object.entries(queryObject)
+        .map(d => [d[0], +d[1]])
+        .filter(d => d[0] != "calculation"); //Get rid of calculation because this related to tables not columns
+
+    return queryArray;
+
+}
+
+function renameScenario(scenarioValue, queryArray) {
+    return queryArray.map(d => d[0].indexOf("Scenario") > -1 ? ["scenario", scenarioValue] : d);
+}
+
+function constructQuery(table, queryArray) {
+
+
+    const select = `SELECT year, location, setting, mean value ${table.includes("supply") ? ", lci, uci" : ""}`;
+    const where = queryArray.length ?
+        "WHERE " + queryArray.map(d => `${d[0]} = ??`).join(" AND ") :
+        "";
+    const orderBy = `ORDER BY year`;
+    return `${select} FROM ${table} ${where} ${orderBy};`;
+}
+
+
 
 
 
@@ -45,5 +108,6 @@ app.get('/data/', function (req, res) {
         res.json(results);
     });
 });
+
 
 app.listen(app.get('port'), () => console.log(`App listening on port ${app.get('port')} !`))

@@ -16,8 +16,12 @@ function createLoadInfileStatement(table) {
 }
 
 function createIndexStatement(table) {
-    return `CREATE UNIQUE INDEX ${table}_id ON ${table}(id);\n`
+    return `CREATE UNIQUE INDEX ${table}_id ON ${table}(id);\n
+    CREATE INDEX ${table}_year ON ${table}(year);\n
+    CREATE INDEX ${table}_where ON ${table}(education,rateOrTotal,fteOrHeadcount,locationType,location,setting);\n`
 }
+
+
 
 //Note that ids are NOT unique (though they will be for individual scenario tables)
 //They are a convenience for quickly joining observations from the supply
