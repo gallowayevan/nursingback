@@ -8,14 +8,34 @@ app.use(cors())
 app.use(compression())
 app.set('port', 8080);
 
-const db = mysql.createPool({
+let connectionSettings = {
     connectionLimit: 10,
-    host: process.env.MYSQL_SERVICE_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    port: process.env.MYSQL_SERVICE_PORT,
-    database: process.env.MYSQL_DATABASE
-});
+    host: "localhost",
+    user: "nodeapp",
+    password: "password",
+    port: 3306,
+    database: "sampledb"
+}
+
+if (process.env.NODE_ENV == "production") {
+    connectionSettings = {
+        connectionLimit: 10,
+        host: process.env.MYSQL_SERVICE_HOST,
+        user: process.env.MYSQL_USER,
+        password: process.env.MYSQL_PASSWORD,
+        port: process.env.MYSQL_SERVICE_PORT,
+        database: process.env.MYSQL_DATABASE
+    }
+}
+
+let db;
+try {
+    db = mysql.createPool(connectionSettings);
+    console.log("Connected to DB")
+}
+catch (err) {
+    console.log(err);
+}
 
 let dataID = 0;
 app.get('/data/', function (req, res) {
