@@ -4,7 +4,7 @@ oc login https://api.cloudapps.unc.edu
 //2. Get pod to SSH to
 oc get pods
 //3. Transfer file
-oc rsync C:\Users\emg33\Documents\Code\nursingback\data mysql-2-lpwmg:/opt/app-root/src/
+oc rsync C:\Users\emg33\Documents\Code\nursingback\data nursing-model-db-1-d9h76:/opt/app-root/src/
 //4. SSH in and check file
 oc rsh nurseproject-124-wzqqk
 //5. cd into data folder and login into database

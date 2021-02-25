@@ -20,10 +20,10 @@ let connectionSettings = {
 if (process.env.NODE_ENV == "production") {
     connectionSettings = {
         connectionLimit: 10,
-        host: process.env.MYSQL_SERVICE_HOST,
+        host: process.env.NURSING_MODEL_DB_SERVICE_HOST,
         user: process.env.MYSQL_USER,
         password: process.env.MYSQL_PASSWORD,
-        port: process.env.MYSQL_SERVICE_PORT,
+        port: process.env.NURSING_MODEL_DB_SERVICE_PORT,
         database: process.env.MYSQL_DATABASE
     }
 }
