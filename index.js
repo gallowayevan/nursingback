@@ -14,7 +14,7 @@ let connectionSettings = {
     user: "nodeapp",
     password: "password",
     port: 3306,
-    database: "sampledb"
+    database: "nursingmodel"
 }
 
 if (process.env.NODE_ENV == "production") {
@@ -37,8 +37,9 @@ catch (err) {
     console.log(err);
 }
 
+const minYear = 2019;
 let dataID = 0;
-app.get('/data/', function (req, res) {
+app.get('/data', function (req, res) {
     const { calculation } = req.query;
 
     if (calculation == "supply" || calculation == "demand") {
@@ -65,8 +66,8 @@ app.get('/data/', function (req, res) {
             .map(d => [`supply${scenario.get("supply")}.` + d[0], d[1]]);
 
         const where = queryArrayRenamed.length ?
-            "WHERE " + queryArrayRenamed.map(d => `${d[0]} = ?`).join(" AND ") :
-            "";
+            "WHERE " + queryArrayRenamed.map(d => `${d[0]} = ?`).join(" AND ") + ` AND supply${scenario.get("supply")}.year >= ${minYear}` :
+            `WHERE supply${scenario.get("supply")}.year >= ${minYear}`;
 
         const sql = `SELECT
                 supply${scenario.get("supply")}.year,
@@ -82,7 +83,8 @@ app.get('/data/', function (req, res) {
                 INNER JOIN demand${scenario.get("demand")} ON supply${scenario.get("supply")}.id = demand${scenario.get("demand")}.id
             ${where}
             ORDER BY
-                supply${scenario.get("supply")}.year`
+                supply${scenario.get("supply")}.year`;
+
         db.query(sql, queryArrayRenamed.map(d => d[1]), (error, results, fields) => {
             if (error) {
                 return console.error(error.message);
@@ -113,8 +115,8 @@ function constructQuery(table, queryArray) {
 
     const select = `SELECT year, location, setting, mean value ${table.includes("supply") ? ", lci, uci" : ""}`;
     const where = queryArray.length ?
-        "WHERE " + queryArray.map(d => `${d[0]} = ?`).join(" AND ") :
-        "";
+        "WHERE " + queryArray.map(d => `${d[0]} = ?`).join(" AND ") + ` AND year >= ${minYear}` :
+        `WHERE year >= ${minYear}`;
     const orderBy = `ORDER BY year`;
     return `${select} FROM ${table} ${where} ${orderBy};`;
 }

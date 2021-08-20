@@ -1,19 +1,19 @@
 //0. Clear data folder and run processData.js
 //1. Log into cloudapps - should be onyen
-oc login https://api.cloudapps.unc.edu
+oc login api.cloudapps.unc.edu:6443 
 //2. Get pod to SSH to
 oc get pods
 //3. Transfer file
-oc rsync C:\Users\emg33\Documents\Code\nursingback\data nursing-model-db-1-d9h76:/opt/app-root/src/
+oc rsync C:\Users\emg33\Documents\Code\nursingback\data nursing-model-db-1-lhj7h:/opt/app-root/src/
 //4. SSH in and check file
-oc rsh nurseproject-124-wzqqk
+oc rsh nursing-model-db-1-lhj7h
 //5. cd into data folder and login into database
 mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -h $HOSTNAME $MYSQL_DATABASE
 //6. drop and recreate database
 SHOW DATABASES;
-DROP DATABASE sampledb;
-CREATE DATABASE sampledb;
-USE sampledb;
+DROP DATABASE nursingmodel;
+CREATE DATABASE nursingmodel;
+USE nursingmodel;
 //7. Read in load statement
 source load_statement.sql
 

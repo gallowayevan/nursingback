@@ -45,17 +45,17 @@ function createID(d) {
 let loadStatement = "";
 
 const parameters = [
-    { supply: 'Forecast ID', demand: 'ForecastID', name: 'scenario' },
-    { supply: 'Year', demand: 'Year', name: 'year' },
-    { supply: 'Location', demand: 'Location', name: 'location' },
-    { supply: 'Type', demand: 'Type', name: 'type' },
-    { supply: 'Education', demand: '', name: 'education' },
-    { supply: 'Setting', demand: 'Setting', name: 'setting' }
+    { supply: 'forecastid', demand: 'ForecastID', name: 'scenario' },
+    { supply: 'year', demand: 'Year', name: 'year' },
+    { supply: 'location', demand: 'Location', name: 'location' },
+    { supply: 'type', demand: 'Type', name: 'type' },
+    { supply: 'education', demand: '', name: 'education' },
+    { supply: 'setting', demand: 'Setting', name: 'setting' }
 ];
 
 const codeMap = new Map([
     ["rateOrTotal", { rate: 0, total: 1 }],
-    ["fteOrHeadcount", { Headcount: 0, FTE: 1 }]
+    ["fteOrHeadcount", { headcount: 0, fte: 1 }]
 ]
 );
 
@@ -71,8 +71,8 @@ function numberFormat(total = 1) {
 }
 
 //Load supply data and process - first remove any spaces from headers in csv!
-const supply = csvParse(fs.readFileSync("raw_data/ForecastSummary - V41 -02122020.csv", 'utf8'), autoType)
-    .filter(d => d.Gender == 0 & d.Race == 0 & d.Age == 0 & d.Year >= 2015)
+const supply = dsvFormat(",").parse(fs.readFileSync("raw_data/BoN Supply Scenarios-09082021.csv", 'utf8'), autoType)
+    .filter(d => d.gender == 0 & d.race == 0 & d.age == 0 & d.year >= 2015 & d.forecastid > 0)
     .flatMap(function (d) {
         const renamedParams = {};
         //First copy over and rename parameters
@@ -80,15 +80,19 @@ const supply = csvParse(fs.readFileSync("raw_data/ForecastSummary - V41 -0212202
             renamedParams[e.name] = d[e.supply];
         });
         //Add parameters and reshape data structure
-        const newAndRenamedParameters = ["Headcount", "FTE"].flatMap(function (e) {
-            return [" per pop", ""].map(function (f) {
+        const newAndRenamedParameters = ["headcount", "fte"].flatMap(function (e) {
+            return ["perpop", ""].map(function (f) {
+                if (d[e + "" + "mean" + f] === null) {
+                    console.log(d)
+                }
+                // console.log(d[e + "" + "mean" + f])
                 const currentFormat = numberFormat(f == "");
-                const mean = +currentFormat(d[e + " " + "mean" + f]);
-                const uci = +currentFormat(d[e + " " + "UCI" + f]);
-                const lci = +currentFormat(d[e + " " + "LCI" + f]);
+                const mean = +currentFormat(d[e + "" + "mean" + f]);
+                const uci = +currentFormat(d[e + "" + "uci" + f]);
+                const lci = +currentFormat(d[e + "" + "lci" + f]);
                 const fteOrHeadcount = codeMap.get("fteOrHeadcount")[e];
                 const rateOrTotal = codeMap.get("rateOrTotal")[f == "" ? "total" : "rate"];
-                const locationType = getLocationType(d.Location);
+                const locationType = getLocationType(d.location);
                 return { ...renamedParams, locationType, fteOrHeadcount, rateOrTotal, mean, uci, lci };
             })
         });
@@ -96,7 +100,6 @@ const supply = csvParse(fs.readFileSync("raw_data/ForecastSummary - V41 -0212202
     }).map(createID);
 //Now break up into separate tables
 groups(supply, d => d.scenario).forEach(function (d) {
-    // console.log(d)
     const sColumns = Object.keys(d[1][0]);
     fs.writeFileSync(`data/supply${d[0]}.csv`, csvFormatBody(d[1], sColumns));
     loadStatement += createTableStatement(`supply${d[0]}`, sColumns);
@@ -106,8 +109,9 @@ groups(supply, d => d.scenario).forEach(function (d) {
 
 
 //Load demand data and process - first remove any spaces from headers in csv!
-const demand = dsvFormat(";").parse(fs.readFileSync("raw_data/DemandForecastSummary-10112020.csv", 'utf8'), autoType)
+const demand = dsvFormat(",").parse(fs.readFileSync("raw_data/DemandForecast-09082021.csv", 'utf8'), autoType)
     .flatMap(function (d) {
+
         const renamedParams = {};
         //First copy over and rename parameters
         parameters.forEach(function (e) {
@@ -119,10 +123,11 @@ const demand = dsvFormat(";").parse(fs.readFileSync("raw_data/DemandForecastSumm
         });
         //Add parameters and reshape data structure
         const newAndRenamedParameters = ["Headcount", "FTE"].flatMap(function (e) {
+
             return ["perPop", ""].map(function (f) {
                 const currentFormat = numberFormat(f == "");
                 const mean = +currentFormat(d[e + "Demand" + f]);
-                const fteOrHeadcount = codeMap.get("fteOrHeadcount")[e];
+                const fteOrHeadcount = codeMap.get("fteOrHeadcount")[e.toLowerCase()];
                 const rateOrTotal = codeMap.get("rateOrTotal")[f == "" ? "total" : "rate"];
                 const locationType = getLocationType(d.Location);
                 return { ...renamedParams, locationType, fteOrHeadcount, rateOrTotal, mean };
@@ -134,7 +139,6 @@ const demand = dsvFormat(";").parse(fs.readFileSync("raw_data/DemandForecastSumm
 
 //Now break up into separate tables
 groups(demand, d => d.scenario).forEach(function (d) {
-    // console.log(d)
     const dColumns = Object.keys(d[1][0]);
     fs.writeFileSync(`data/demand${d[0]}.csv`, csvFormatBody(d[1], dColumns));
     loadStatement += createTableStatement(`demand${d[0]}`, dColumns);
