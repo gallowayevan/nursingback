@@ -2,6 +2,8 @@ const compression = require('compression')
 const express = require('express')
 const cors = require('cors');
 const mysql = require('mysql');
+const { query } = require('express');
+const { groups } = require('d3-array');
 
 const app = express()
 app.use(cors())
@@ -40,20 +42,31 @@ catch (err) {
 const minYear = 2019;
 let dataID = 0;
 app.get('/data', function (req, res) {
-    const { calculation } = req.query;
+    const { calculation, setting } = req.query;
 
     if (calculation == "supply" || calculation == "demand") {
         const queryArray = prepareQueryArray(calculation, req.query);
-        const scenario = +queryArray.find(d => d[0].includes("Scenario"))[1];
-        const queryArrayRenamed = queryArray.filter(d => d[0].indexOf("Scenario") < 0)
-            .map(d => [calculation + scenario + "." + d[0], d[1]]);
+        //Conditional added to compensate for there being only one demand scenario.
+        const allSettings = +setting === -9;
 
-        db.query(constructQuery(calculation + scenario, queryArrayRenamed), queryArrayRenamed.map(d => d[1]), (error, results, fields) => {
+        const scenario = calculation == "demand" ? 1 : +queryArray.find(d => d[0].includes("Scenario"))[1];
+        const queryArrayRenamed = queryArray.filter(function (d) {
+            if (allSettings & d[0] === "setting") return false;
+            return true;
+        }).filter(d => d[0].indexOf("Scenario") < 0)
+            .map(d => [calculation + scenario + "." + d[0], d[1]])
+
+        db.query(constructQuery(calculation + scenario, queryArrayRenamed, allSettings), queryArrayRenamed.map(d => d[1]), (error, results, fields) => {
             if (error) {
                 return console.error(error.message);
             }
-
-            res.json({ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] });
+            const rows = allSettings ? groups(results, d => d.setting).map(function (row) {
+                const values = row[1];
+                const id = dataID++;
+                const params = [["calculation", calculation], ["setting", row[0]], ...queryArray.filter(d => d[0] !== "setting")];
+                return { values, id, params }
+            }) : [{ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] }]
+            res.json(rows);
         });
     } else if (calculation == "percentage" || calculation == "difference") {
 
@@ -61,9 +74,19 @@ app.get('/data', function (req, res) {
         const queryArray = Object.entries(req.query)
             .map(d => [d[0], +d[1]])
             .filter(d => d[0] != "calculation");
+
+        const allSettings = +setting === -9;
+
         const scenario = new Map(queryArray.filter(d => d[0].includes("Scenario")).map(d => [d[0].slice(0, 6), d[1]]));
-        const queryArrayRenamed = queryArray.filter(d => d[0].indexOf("Scenario") < 0)
-            .map(d => [`supply${scenario.get("supply")}.` + d[0], d[1]]);
+        scenario.set("demand", 1); //Added to compensate for there being only one demand scenario.
+        const queryArrayRenamed = queryArray.filter(function (d) {
+            if (allSettings & d[0] === "setting") return false;
+            return true;
+        }).filter(d => d[0].indexOf("Scenario") < 0)
+            .map(d => [`supply${scenario.get("supply")}.` + d[0], d[1]]).filter(function (d) {
+                if (allSettings & d[0] === "setting") return false;
+                return true;
+            });
 
         const where = queryArrayRenamed.length ?
             "WHERE " + queryArrayRenamed.map(d => `${d[0]} = ?`).join(" AND ") + ` AND supply${scenario.get("supply")}.year >= ${minYear}` :
@@ -81,6 +104,7 @@ app.get('/data', function (req, res) {
                 supply${scenario.get("supply")}
                 INNER JOIN demand${scenario.get("demand")} ON supply${scenario.get("supply")}.id = demand${scenario.get("demand")}.id
             ${where}
+            ${allSettings ? ` AND supply${scenario.get("supply")}.setting <> 0` : ""}
             ORDER BY
                 supply${scenario.get("supply")}.year`;
 
@@ -88,12 +112,21 @@ app.get('/data', function (req, res) {
             if (error) {
                 return console.error(error.message);
             }
-            res.json({ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] });
+            const rows = allSettings ? groups(results, d => d.setting).map(function (row) {
+                const values = row[1];
+                const id = dataID++;
+                const params = [["calculation", calculation], ["setting", row[0]], ...queryArray.filter(d => d[0] !== "setting")];
+                return { values, id, params }
+            }) : [{ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] }]
+
+            res.json(rows);
         });
 
     }
 }
 )
+
+
 
 function prepareQueryArray(table, queryObject) {
 
@@ -109,13 +142,14 @@ function renameScenario(scenarioValue, queryArray) {
     return queryArray.map(d => d[0].indexOf("Scenario") > -1 ? ["scenario", scenarioValue] : d);
 }
 
-function constructQuery(table, queryArray) {
+function constructQuery(table, queryArray, allSettings) {
 
 
     const select = `SELECT year, location, setting, mean value ${table.includes("supply") ? ", lci, uci" : ""}`;
-    const where = queryArray.length ?
+    let where = queryArray.length ?
         "WHERE " + queryArray.map(d => `${d[0]} = ?`).join(" AND ") + ` AND year >= ${minYear}` :
         `WHERE year >= ${minYear}`;
+    where += allSettings ? `AND setting <> 0` : "";
     const orderBy = `ORDER BY year`;
     return `${select} FROM ${table} ${where} ${orderBy};`;
 }
