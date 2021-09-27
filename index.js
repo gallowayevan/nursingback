@@ -55,7 +55,7 @@ app.get('/data', function (req, res) {
 
             res.json({ values: results, id: dataID++, params: [["calculation", calculation], ...queryArray] });
         });
-    } else if (calculation == "ratio" || calculation == "difference") {
+    } else if (calculation == "percentage" || calculation == "difference") {
 
 
         const queryArray = Object.entries(req.query)
@@ -75,9 +75,8 @@ app.get('/data', function (req, res) {
                 supply${scenario.get("supply")}.setting,
                 supply${scenario.get("supply")}.mean supplyMean,
                 demand${scenario.get("demand")}.mean demandMean,
-                ${calculation == "ratio" ?
-                `ROUND(supply${scenario.get("supply")}.mean / demand${scenario.get("demand")}.mean, 3) value` :
-                `ROUND(supply${scenario.get("supply")}.mean - demand${scenario.get("demand")}.mean, 3) value`}
+                ROUND((supply${scenario.get("supply")}.mean - demand${scenario.get("demand")}.mean)/supply${scenario.get("supply")}.mean, 3) ${calculation === "percentage" ? `value` : `percentage`},
+                ROUND(supply${scenario.get("supply")}.mean - demand${scenario.get("demand")}.mean, 3) ${calculation === "difference" ? `value` : `difference`}
             FROM
                 supply${scenario.get("supply")}
                 INNER JOIN demand${scenario.get("demand")} ON supply${scenario.get("supply")}.id = demand${scenario.get("demand")}.id
