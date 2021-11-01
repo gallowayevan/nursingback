@@ -71,7 +71,7 @@ function numberFormat(total = 1) {
 }
 
 //Load supply data and process - first remove any spaces from headers in csv!
-const supply = dsvFormat(",").parse(fs.readFileSync("raw_data/BoN Supply Scenarios-09082021.csv", 'utf8'), autoType)
+const supply = dsvFormat(";").parse(fs.readFileSync("raw_data/ForecastSummary - V71 -05102021.csv", 'utf8'), autoType)
     .filter(d => d.gender == 0 & d.race == 0 & d.age == 0 & d.year >= 2015 & d.forecastid > 0)
     .flatMap(function (d) {
         const renamedParams = {};

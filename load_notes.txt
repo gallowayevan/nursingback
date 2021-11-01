@@ -17,10 +17,45 @@ USE nursingmodel;
 //7. Read in load statement
 source load_statement.sql
 
+//Check to make sure that the following codes are filtered from the db
+so they don't show up in results sent to viz.
+RN and Setting Other (code 9)
+LPN and Setting Other (9), Education (6), or Pop Health (5)
+
+DELETE from demand1 where type = 1 AND setting = 5;
+DELETE from supply52 where type = 1 AND setting = 5;
+DELETE from supply56 where type = 1 AND setting = 5;
+DELETE from supply57 where type = 1 AND setting = 5;
+DELETE from supply58 where type = 1 AND setting = 5;
+DELETE from supply59 where type = 1 AND setting = 5;
+DELETE from supply62 where type = 1 AND setting = 5;
+DELETE from supply71 where type = 1 AND setting = 5;
+
+DELETE from demand1 where type = 1 AND setting = 9;
+DELETE from supply52 where type = 1 AND setting = 9;
+DELETE from supply56 where type = 1 AND setting = 9;
+DELETE from supply57 where type = 1 AND setting = 9;
+DELETE from supply58 where type = 1 AND setting = 9;
+DELETE from supply59 where type = 1 AND setting = 9;
+DELETE from supply62 where type = 1 AND setting = 9;
+DELETE from supply71 where type = 1 AND setting = 9;
+
+DELETE from demand1 where type = 2 AND setting = 9;
+DELETE from supply52 where type = 2 AND setting = 9;
+DELETE from supply56 where type = 2 AND setting = 9;
+DELETE from supply57 where type = 2 AND setting = 9;
+DELETE from supply58 where type = 2 AND setting = 9;
+DELETE from supply59 where type = 2 AND setting = 9;
+DELETE from supply62 where type = 2 AND setting = 9;
+DELETE from supply71 where type = 2 AND setting = 9;
+
+
 
 -----How to add a new MySQL database to a project
 //Add new mySQL container
 //Add it as a permanent volume to Node project
 //Get secrets and set keys to use in Node env
+
+
 
 

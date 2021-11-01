@@ -2,7 +2,6 @@ const compression = require('compression')
 const express = require('express')
 const cors = require('cors');
 const mysql = require('mysql');
-const { query } = require('express');
 const { groups } = require('d3-array');
 
 const app = express()
@@ -149,7 +148,7 @@ function constructQuery(table, queryArray, allSettings) {
     let where = queryArray.length ?
         "WHERE " + queryArray.map(d => `${d[0]} = ?`).join(" AND ") + ` AND year >= ${minYear}` :
         `WHERE year >= ${minYear}`;
-    where += allSettings ? `AND setting <> 0` : "";
+    where += allSettings ? ` AND setting <> 0` : "";
     const orderBy = `ORDER BY year`;
     return `${select} FROM ${table} ${where} ${orderBy};`;
 }
